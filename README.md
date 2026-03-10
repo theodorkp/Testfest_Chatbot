@@ -25,7 +25,7 @@ Chatboten skal kunne:
 
 Følg stegene under etter at du har klonet repoet.
 
-### 1. Installer Node.js
+## 1. Installer Node.js
 
 Prosjektet krever at Node.js og npm er installert.
 Du kan sjekke om dette er installert ved å kjøre:
@@ -37,7 +37,9 @@ npm -v
 Lag en fil som heter .env inne i server-mappen.
 
 Eksempel:
+
 PORT=3001
+
 GEMINI_API_KEY=DIN_API_NOKKEL
 
 Legg inn egen API nøkkel.
