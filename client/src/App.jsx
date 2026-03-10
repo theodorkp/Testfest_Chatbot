@@ -72,7 +72,7 @@ export default function App() {
           </p>
           <h1 className="mt-2 text-3xl font-bold">Chatbot for WCAG og universell utforming</h1>
           <p className="mt-2 max-w-3xl text-sm text-slate-600">
-            En enkel startversjon som kan utvides med testfest-data, vurderingslogikk og mer domenespesifikke svar.
+            Første versjon av Testfest Chatbot.
           </p>
         </header>
 <section className="flex flex-1 flex-col rounded-2xl bg-white shadow-sm">
@@ -102,14 +102,14 @@ export default function App() {
 
           <form onSubmit={sendMessage} className="border-t border-slate-200 p-4 md:p-6">
             <label htmlFor="chat-input" className="mb-2 block text-sm font-medium">
-              Still et spørsmål
+              Still et spørsmål:
             </label>
             <div className="flex flex-col gap-3 md:flex-row">
               <textarea
                 id="chat-input"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="For eksempel: Hva betyr WCAG 1.4.3 om kontrast?"
+                placeholder="For eksempel: Hva er WCAG?"
                 rows={3}
                 className="min-h-[88px] flex-1 rounded-xl border border-slate-300 px-4 py-3 outline-none ring-0 transition focus:border-blue-500"
               />
