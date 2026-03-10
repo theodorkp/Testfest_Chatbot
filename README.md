@@ -1,8 +1,6 @@
-# # Chatbot for Testfest
+# Chatbot for Testfest
 
 Dette prosjektet er en chatbot laget for **Testfest**, med mål om å hjelpe **tjenesteeiere** med informasjon om **WCAG** og **universell utforming**.
-
-Chatboten er laget som et grunnlag som kan bygges videre på. Målet er at den ikke bare skal kunne svare på generelle spørsmål om WCAG, men også etter hvert kunne gi **konkrete forslag til forbedringer** basert på funn og data samlet inn under en testfest.
 
 ## Teknologi
 
@@ -27,5 +25,43 @@ Chatboten skal kunne:
 
 Følg stegene under etter at du har klonet repoet.
 
-### 1. Klon repoet
+### 1. Installer Node.js
 
+Prosjektet krever at Node.js og npm er installert.
+Du kan sjekke om dette er installert ved å kjøre:
+node -v
+npm -v
+
+## 2. Opprett .env i server
+
+Lag en fil som heter .env inne i server-mappen.
+
+Eksempel:
+PORT=3001
+GEMINI_API_KEY=DIN_API_NOKKEL
+
+Legg inn egen API nøkkel.
+
+## 3. Intstaller avhengigheter
+
+Fra rotmappen i prosjektet:
+npm install
+
+Installer deretter avhengigheter for backend og frontend:
+cd server
+npm install
+cd client
+npm install
+
+## 4. Start prosjektet
+
+Fra rotmappen:
+npm run dev
+
+Backend starter på localhost:3001
+Frontend starter på localhost:5173
+
+## 5. Åpne chatbot i nettleser
+
+Gå til:
+http://localhost:5173
