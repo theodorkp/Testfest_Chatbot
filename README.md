@@ -46,7 +46,7 @@ GEMINI_API_KEY=DIN_API_NOKKEL
 
 **Endre "DIN_API_NOKKEL" med egen API nøkkel.**
 
-## 3. Intstaller avhengigheter
+## 3. Installer avhengigheter
 
 Fra rotmappen i prosjektet:
 
