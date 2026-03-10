@@ -29,7 +29,9 @@ Følg stegene under etter at du har klonet repoet.
 
 Prosjektet krever at Node.js og npm er installert.
 Du kan sjekke om dette er installert ved å kjøre:
+
 node -v
+
 npm -v
 
 ## 2. Opprett .env i server
@@ -42,26 +44,33 @@ PORT=3001
 
 GEMINI_API_KEY=DIN_API_NOKKEL
 
-Legg inn egen API nøkkel.
+**Legg inn egen API nøkkel.**
 
 ## 3. Intstaller avhengigheter
 
 Fra rotmappen i prosjektet:
+
 npm install
 
 Installer deretter avhengigheter for backend og frontend:
+
 cd server
+
 npm install
+
 cd client
+
 npm install
 
 ## 4. Start prosjektet
 
 Fra rotmappen:
+
 npm run dev
 
-Backend starter på localhost:3001
-Frontend starter på localhost:5173
+**Backend starter på localhost:3001**
+
+**Frontend starter på localhost:5173**
 
 ## 5. Åpne chatbot i nettleser
 
