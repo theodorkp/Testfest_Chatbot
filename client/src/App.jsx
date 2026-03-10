@@ -25,8 +25,8 @@ export default function App() {
 
     try {
       const history = updatedMessages.slice(0, -1).map((msg) => ({
-        role: msg.role,
-        parts: [{ text: msg.content }],
+       role: msg.role === "assistant" ? "model" : "user",
+       parts: [{ text: msg.content }],
       }));
 
       const response = await fetch(API_URL, {
