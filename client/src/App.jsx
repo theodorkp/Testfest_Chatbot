@@ -272,7 +272,7 @@ export default function App() {
             testfest.no
           </p>
           <h1 className="mt-2 text-3xl font-bold">
-            Chatbot for WCAG og universell utforming
+            Chatbot for universell utforming
           </h1>
           <p className={`mt-2 max-w-3xl text-sm ${theme.subText}`}>
             Første versjon av Testfest Chatbot.
