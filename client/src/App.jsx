@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 
 const API_URL = "http://localhost:3001/api/chat";
 const SUGGESTED_URL = "http://localhost:3001/api/suggested-prompts";
+const UPLOAD_URL = "http://localhost:3001/api/upload";
+const ACTIVE_FILE_URL = "http://localhost:3001/api/active-file";
 
 export default function App() {
   const [messages, setMessages] = useState([
@@ -14,6 +16,9 @@ export default function App() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [suggestedPrompts, setSuggestedPrompts] = useState([]);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [activeFile, setActiveFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem("testfest-darkmode");
@@ -22,6 +27,7 @@ export default function App() {
 
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const settingsRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const showSuggestedPrompts =
     messages.length === 1 && messages[0].role === "assistant";
@@ -42,7 +48,23 @@ export default function App() {
       }
     }
 
+    async function fetchActiveFile() {
+      try {
+        const response = await fetch(ACTIVE_FILE_URL);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Kunne ikke hente aktiv fil");
+        }
+
+        setActiveFile(data.file || null);
+      } catch (error) {
+        console.error("Kunne ikke hente aktiv fil:", error);
+      }
+    }
+
     fetchSuggestedPrompts();
+    fetchActiveFile();
   }, []);
 
   useEffect(() => {
@@ -65,6 +87,10 @@ export default function App() {
     };
   }, [showSettingsMenu]);
 
+  function openFilePicker() {
+    fileInputRef.current?.click();
+  }
+
   async function sendChatMessage(text) {
     const trimmed = text.trim();
     if (!trimmed || loading) return;
@@ -75,10 +101,13 @@ export default function App() {
     setLoading(true);
 
     try {
-      const history = updatedMessages.slice(0, -1).map((msg) => ({
-        role: msg.role === "assistant" ? "model" : "user",
-        parts: [{ text: msg.content }],
-      }));
+      const history = updatedMessages
+        .slice(0, -1)
+        .filter((msg) => !(msg.role === "assistant" && msg.source === "database"))
+        .map((msg) => ({
+          role: msg.role === "assistant" ? "model" : "user",
+          parts: [{ text: msg.content }],
+        }));
 
       const response = await fetch(API_URL, {
         method: "POST",
@@ -161,6 +190,91 @@ export default function App() {
     }
   }
 
+  async function handleUpload() {
+    if (!selectedFile || uploading) return;
+
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+
+    setUploading(true);
+
+    try {
+      const response = await fetch(UPLOAD_URL, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Kunne ikke laste opp fil");
+      }
+
+      setActiveFile(data.file || null);
+      setSelectedFile(null);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `PDF lastet opp: ${data.file?.name}. Du kan nå stille spørsmål om dokumentet.`,
+          source: "system",
+        },
+      ]);
+    } catch (error) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `Kunne ikke laste opp PDF: ${error.message}`,
+          source: "error",
+        },
+      ]);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleClearActiveFile() {
+    try {
+      const response = await fetch(ACTIVE_FILE_URL, { method: "DELETE" });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Kunne ikke fjerne aktiv fil");
+      }
+
+      setActiveFile(null);
+      setSelectedFile(null);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Den aktive PDF-en er fjernet fra denne chatten.",
+          source: "system",
+        },
+      ]);
+    } catch (error) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `Kunne ikke fjerne PDF: ${error.message}`,
+          source: "error",
+        },
+      ]);
+    }
+  }
+
   const theme = {
     pageBg:
       isDarkMode ? "bg-slate-950 text-slate-100" : "bg-slate-100 text-slate-900",
@@ -192,6 +306,9 @@ export default function App() {
     badgeBg: isDarkMode
       ? "bg-slate-700 text-slate-200"
       : "bg-slate-200 text-slate-700",
+    secondaryButton: isDarkMode
+      ? "border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800"
+      : "border-slate-300 bg-white text-slate-900 hover:bg-slate-50",
   };
 
   return (
@@ -272,7 +389,7 @@ export default function App() {
             testfest.no
           </p>
           <h1 className="mt-2 text-3xl font-bold">
-            Chatbot for universell utforming
+            Chatbot for WCAG og universell utforming
           </h1>
           <p className={`mt-2 max-w-3xl text-sm ${theme.subText}`}>
             Første versjon av Testfest Chatbot.
@@ -304,6 +421,16 @@ export default function App() {
                       className={`inline-block rounded-full px-3 py-1 text-xs ${theme.badgeBg}`}
                     >
                       Forhåndsskrevet svar
+                    </span>
+                  </div>
+                )}
+
+                {msg.role === "assistant" && msg.source === "llm+file" && (
+                  <div className="mt-2 max-w-3xl">
+                    <span
+                      className={`inline-block rounded-full px-3 py-1 text-xs ${theme.badgeBg}`}
+                    >
+                      Svar basert på opplastet PDF
                     </span>
                   </div>
                 )}
@@ -350,19 +477,114 @@ export default function App() {
             >
               Still et spørsmål:
             </label>
-            <div className="flex flex-col gap-3 md:flex-row">
+
+            {activeFile && (
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <div
+                  className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm ${theme.badgeBg}`}
+                >
+                  <span className="font-medium">PDF:</span>
+                  <span>{activeFile.name}</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleClearActiveFile}
+                  className={`rounded-full border px-3 py-2 text-xs transition ${theme.secondaryButton}`}
+                >
+                  Fjern
+                </button>
+              </div>
+            )}
+
+            {selectedFile && !activeFile && (
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <div
+                  className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm ${theme.badgeBg}`}
+                >
+                  <span className="font-medium">Valgt:</span>
+                  <span>{selectedFile.name}</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleUpload}
+                  disabled={uploading}
+                  className="rounded-full bg-blue-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {uploading ? "Laster opp …" : "Last opp"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedFile(null);
+                    if (fileInputRef.current) {
+                      fileInputRef.current.value = "";
+                    }
+                  }}
+                  className={`rounded-full border px-3 py-2 text-xs transition ${theme.secondaryButton}`}
+                >
+                  Fjern valgt fil
+                </button>
+              </div>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf"
+              onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+              className="hidden"
+            />
+
+            <div className="flex items-end gap-3">
+              <button
+                type="button"
+                onClick={openFilePicker}
+                disabled={loading || uploading}
+                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full border shadow-sm transition ${theme.settingsButton} disabled:cursor-not-allowed disabled:opacity-60`}
+                aria-label="Last opp PDF"
+                title="Last opp PDF"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="h-5 w-5"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 5v14"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M5 12h14"
+                  />
+                </svg>
+              </button>
+
               <textarea
                 id="chat-input"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="For eksempel: Hva er WCAG?"
+                placeholder={
+                  activeFile
+                    ? "For eksempel: Hva er de viktigste funnene i denne rapporten?"
+                    : "For eksempel: Hva er WCAG?"
+                }
                 rows={3}
-                className={`min-h-[88px] flex-1 rounded-xl border px-4 py-3 outline-none transition focus:border-blue-500 ${theme.inputBg}`}
+                className={`min-h-[88px] flex-1 rounded-2xl border px-4 py-3 outline-none transition focus:border-blue-500 ${theme.inputBg}`}
               />
+
               <button
                 type="submit"
                 disabled={loading}
-                className="rounded-xl bg-blue-600 px-5 py-3 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="h-12 rounded-2xl bg-blue-600 px-5 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Send
               </button>
