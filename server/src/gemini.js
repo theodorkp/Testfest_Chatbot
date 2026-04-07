@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, createUserContent, createPartFromUri } from "@google/genai";
 import { systemInstruction } from "./prompts.js";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -7,14 +7,29 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function askGemini({ message, history = [] }) {
-  const contents = [
-    ...history,
-    {
-      role: "user",
-      parts: [{ text: message }],
-    },
-  ];
+export async function uploadPdfToGemini(filePath, mimeType = "application/pdf") {
+  const uploadedFile = await ai.files.upload({
+    file: filePath,
+    config: { mimeType },
+  });
+
+  return uploadedFile;
+}
+
+export async function askGemini({ message, history = [], activeFile = null }) {
+  const priorTurns = history;
+
+  const currentUserContent = activeFile
+    ? createUserContent([
+        createPartFromUri(activeFile.uri, activeFile.mimeType),
+        message,
+      ])
+    : {
+        role: "user",
+        parts: [{ text: message }],
+      };
+
+  const contents = [...priorTurns, currentUserContent];
 
   const maxAttempts = 3;
   let lastError;
