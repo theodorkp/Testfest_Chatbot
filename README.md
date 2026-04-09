@@ -58,7 +58,7 @@ _cd server_
 
 _npm install_
 
-_cd client_
+_cd ../client_
 
 _npm install_
 
