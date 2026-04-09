@@ -30,9 +30,9 @@ Følg stegene under etter at du har klonet repoet.
 Prosjektet krever at Node.js og npm er installert.
 Du kan sjekke om dette er installert ved å kjøre:
 
--node -v
+_node -v_
 
--npm -v
+_npm -v_
 
 ## 2. Opprett .env i server
 
@@ -50,23 +50,23 @@ GEMINI_API_KEY=DIN_API_NOKKEL
 
 Fra rotmappen i prosjektet:
 
--npm install
+_npm install_
 
 Installer deretter avhengigheter for backend og frontend:
 
--cd server
+_cd server_
 
--npm install
+_npm install_
 
--cd client
+_cd client_
 
--npm install
+_npm install_
 
 ## 4. Start prosjektet
 
 Fra rotmappen:
 
--npm run dev
+_npm run dev_
 
 **Backend starter på localhost:3001**
 

@@ -377,7 +377,7 @@ export default function App() {
                 <div
                   className={`mt-4 border-t pt-3 text-xs ${theme.border} ${theme.subText}`}
                 >
-                  Flere innstillinger kan legges til her senere.
+                  Flere innstillinger kommer her.
                 </div>
               </div>
             )}
@@ -386,14 +386,11 @@ export default function App() {
 
         <header className={`mb-6 rounded-2xl p-6 shadow-sm ${theme.headerBg}`}>
           <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
-            testfest.no
+            Testfest-Chatbot
           </p>
           <h1 className="mt-2 text-3xl font-bold">
             Chatbot for WCAG og universell utforming
           </h1>
-          <p className={`mt-2 max-w-3xl text-sm ${theme.subText}`}>
-            Første versjon av Testfest Chatbot.
-          </p>
         </header>
 
         <section
