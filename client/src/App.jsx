@@ -5,14 +5,14 @@ const SUGGESTED_URL = "http://localhost:3001/api/suggested-prompts";
 const UPLOAD_URL = "http://localhost:3001/api/upload";
 const ACTIVE_FILE_URL = "http://localhost:3001/api/active-file";
 
+const INITIAL_MESSAGE = {
+  role: "assistant",
+  content:
+    "Hei! Jeg kan hjelpe deg med spørsmål om WCAG, universell utforming og forslag til forbedringer.",
+};
+
 export default function App() {
-  const [messages, setMessages] = useState([
-    {
-      role: "assistant",
-      content:
-        "Hei! Jeg kan hjelpe deg med spørsmål om WCAG, universell utforming og forslag til forbedringer.",
-    },
-  ]);
+  const [messages, setMessages] = useState([INITIAL_MESSAGE]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [suggestedPrompts, setSuggestedPrompts] = useState([]);
@@ -89,6 +89,24 @@ export default function App() {
 
   function openFilePicker() {
     fileInputRef.current?.click();
+  }
+
+  async function handleNewConversation() {
+    setMessages([INITIAL_MESSAGE]);
+    setInput("");
+    setSelectedFile(null);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+
+    try {
+      await fetch(ACTIVE_FILE_URL, { method: "DELETE" });
+    } catch (error) {
+      console.error("Kunne ikke fjerne aktiv PDF:", error);
+    }
+
+    setActiveFile(null);
   }
 
   async function sendChatMessage(text) {
@@ -314,73 +332,83 @@ export default function App() {
   return (
     <main className={`min-h-screen transition-colors ${theme.pageBg}`}>
       <div className="mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-8">
-        <div className="mb-4 flex justify-end" ref={settingsRef}>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowSettingsMenu((prev) => !prev)}
-              className={`flex h-11 w-11 items-center justify-center rounded-full border shadow-sm transition ${theme.settingsButton}`}
-              aria-haspopup="menu"
-              aria-expanded={showSettingsMenu}
-              aria-label="Åpne innstillinger"
-              title="Innstillinger"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                className="h-5 w-5"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.573-1.066z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-              </svg>
-            </button>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={handleNewConversation}
+            className={`rounded-xl border px-4 py-2 text-sm font-medium shadow-sm transition ${theme.secondaryButton}`}
+          >
+            Ny samtale
+          </button>
 
-            {showSettingsMenu && (
-              <div
-                className={`absolute right-0 z-20 mt-2 w-72 rounded-2xl border p-4 shadow-lg ${theme.menuBg}`}
-                role="menu"
+          <div ref={settingsRef}>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowSettingsMenu((prev) => !prev)}
+                className={`flex h-11 w-11 items-center justify-center rounded-full border shadow-sm transition ${theme.settingsButton}`}
+                aria-haspopup="menu"
+                aria-expanded={showSettingsMenu}
+                aria-label="Åpne innstillinger"
+                title="Innstillinger"
               >
-                <h2 className="mb-3 text-sm font-semibold">Innstillinger</h2>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  className="h-5 w-5"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.573-1.066z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+              </button>
 
-                <div className="flex items-center justify-between gap-4 rounded-xl">
-                  <div>
-                    <p className="text-sm font-medium">Dark mode</p>
-                    <p className={`text-xs ${theme.subText}`}>
-                      Bytt mellom lyst og mørkt tema
-                    </p>
+              {showSettingsMenu && (
+                <div
+                  className={`absolute right-0 z-20 mt-2 w-72 rounded-2xl border p-4 shadow-lg ${theme.menuBg}`}
+                  role="menu"
+                >
+                  <h2 className="mb-3 text-sm font-semibold">Innstillinger</h2>
+
+                  <div className="flex items-center justify-between gap-4 rounded-xl">
+                    <div>
+                      <p className="text-sm font-medium">Dark mode</p>
+                      <p className={`text-xs ${theme.subText}`}>
+                        Bytt mellom lyst og mørkt tema
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsDarkMode((prev) => !prev)}
+                      className={`relative h-7 w-12 rounded-full transition ${theme.toggleBg}`}
+                      aria-pressed={isDarkMode}
+                      aria-label="Bytt dark mode"
+                    >
+                      <span
+                        className={`absolute left-1 top-1 h-5 w-5 rounded-full transition-transform ${theme.toggleKnob}`}
+                      />
+                    </button>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setIsDarkMode((prev) => !prev)}
-                    className={`relative h-7 w-12 rounded-full transition ${theme.toggleBg}`}
-                    aria-pressed={isDarkMode}
-                    aria-label="Bytt dark mode"
+                  <div
+                    className={`mt-4 border-t pt-3 text-xs ${theme.border} ${theme.subText}`}
                   >
-                    <span
-                      className={`absolute left-1 top-1 h-5 w-5 rounded-full transition-transform ${theme.toggleKnob}`}
-                    />
-                  </button>
+                    Flere innstillinger kommer her.
+                  </div>
                 </div>
-
-                <div
-                  className={`mt-4 border-t pt-3 text-xs ${theme.border} ${theme.subText}`}
-                >
-                  Flere innstillinger kommer her.
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
