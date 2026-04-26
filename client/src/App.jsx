@@ -11,6 +11,13 @@ const INITIAL_MESSAGE = {
     "Hei! Jeg kan hjelpe deg med spørsmål om WCAG, universell utforming og forslag til forbedringer.",
 };
 
+const PDF_SUGGESTED_PROMPTS = [
+  "Kan du oppsummere rapporten?",
+  "Hva er de viktigste funnene i rapporten?",
+  "Hvilke tiltak bør prioriteres først?",
+  "Hvilke WCAG-relaterte utfordringer peker rapporten på?",
+];
+
 export default function App() {
   const [messages, setMessages] = useState([INITIAL_MESSAGE]);
   const [input, setInput] = useState("");
@@ -225,6 +232,10 @@ export default function App() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handlePdfSuggestedPrompt(prompt) {
+    await sendChatMessage(prompt);
   }
 
   async function handleUpload() {
@@ -494,7 +505,7 @@ export default function App() {
               </div>
             ))}
 
-            {showSuggestedPrompts && suggestedPrompts.length > 0 && (
+            {showSuggestedPrompts && !activeFile && suggestedPrompts.length > 0 && (
               <div className="mt-6">
                 <p className={`mb-3 text-sm font-semibold ${theme.subText}`}>
                   Forslag til spørsmål du kan stille:
@@ -509,6 +520,27 @@ export default function App() {
                       className={`rounded-2xl border p-4 text-left text-sm shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${theme.suggestionCard}`}
                     >
                       {prompt.title}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeFile && messages.length <= 2 && (
+              <div className="mt-6">
+                <p className={`mb-3 text-sm font-semibold ${theme.subText}`}>
+                  Forslag til spørsmål om rapporten:
+                </p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {PDF_SUGGESTED_PROMPTS.map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      onClick={() => handlePdfSuggestedPrompt(prompt)}
+                      disabled={loading}
+                      className={`rounded-2xl border p-4 text-left text-sm shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${theme.suggestionCard}`}
+                    >
+                      {prompt}
                     </button>
                   ))}
                 </div>
