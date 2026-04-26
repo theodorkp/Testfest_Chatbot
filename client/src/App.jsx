@@ -26,6 +26,8 @@ export default function App() {
   });
 
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+
   const settingsRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -87,6 +89,22 @@ export default function App() {
     };
   }, [showSettingsMenu]);
 
+  useEffect(() => {
+    function handleEscape(event) {
+      if (event.key === "Escape") {
+        setShowPrivacyModal(false);
+      }
+    }
+
+    if (showPrivacyModal) {
+      document.addEventListener("keydown", handleEscape);
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [showPrivacyModal]);
+
   function openFilePicker() {
     fileInputRef.current?.click();
   }
@@ -95,6 +113,7 @@ export default function App() {
     setMessages([INITIAL_MESSAGE]);
     setInput("");
     setSelectedFile(null);
+    setShowSettingsMenu(false);
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -327,6 +346,8 @@ export default function App() {
     secondaryButton: isDarkMode
       ? "border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800"
       : "border-slate-300 bg-white text-slate-900 hover:bg-slate-50",
+    modalOverlay: "bg-black/50",
+    modalBg: isDarkMode ? "bg-slate-900 text-slate-100" : "bg-white text-slate-900",
   };
 
   return (
@@ -400,6 +421,17 @@ export default function App() {
                       />
                     </button>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPrivacyModal(true);
+                      setShowSettingsMenu(false);
+                    }}
+                    className={`mt-4 w-full rounded-xl border px-4 py-3 text-left text-sm font-medium transition ${theme.secondaryButton}`}
+                  >
+                    Personvern
+                  </button>
 
                   <div
                     className={`mt-4 border-t pt-3 text-xs ${theme.border} ${theme.subText}`}
@@ -617,6 +649,86 @@ export default function App() {
           </form>
         </section>
       </div>
+
+      {showPrivacyModal && (
+        <div
+          className={`fixed inset-0 z-40 flex items-center justify-center p-4 ${theme.modalOverlay}`}
+          onClick={() => setShowPrivacyModal(false)}
+        >
+          <div
+            className={`max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl p-6 shadow-2xl ${theme.modalBg}`}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="privacy-title"
+          >
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <h2 id="privacy-title" className="text-xl font-bold">
+                  Personvern
+                </h2>
+                <p className={`mt-1 text-sm ${theme.subText}`}>
+                  Informasjon om hvordan data behandles i chatboten.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowPrivacyModal(false)}
+                className={`rounded-xl border px-3 py-2 text-sm transition ${theme.secondaryButton}`}
+              >
+                Lukk
+              </button>
+            </div>
+
+            <div className="space-y-5 text-sm leading-6">
+              <section>
+                <h3 className="font-semibold">Hva som sendes til språkmodellen</h3>
+                <p className={`mt-1 ${theme.subText}`}>
+                  Når du skriver i chatten, sendes meldingen din og relevant
+                  samtalehistorikk til Google Gemini API for å generere svar.
+                </p>
+              </section>
+
+              <section>
+                <h3 className="font-semibold">Opplastede PDF-filer</h3>
+                <p className={`mt-1 ${theme.subText}`}>
+                  Hvis du laster opp en PDF, mottas filen først av backend-tjenesten
+                  og lastes deretter opp til Gemini Files API for dokumentforståelse.
+                  Den lokale kopien slettes etter opplasting.
+                </p>
+              </section>
+
+              <section>
+                <h3 className="font-semibold">Lagringstid</h3>
+                <p className={`mt-1 ${theme.subText}`}>
+                  Opplastede filer lagres ikke permanent i denne prototypen. Filer
+                  som lastes opp til Gemini Files API kan lagres midlertidig hos
+                  Google i opptil 48 timer.
+                </p>
+              </section>
+
+              <section>
+                <h3 className="font-semibold">Viktig å være oppmerksom på</h3>
+                <p className={`mt-1 ${theme.subText}`}>
+                  Unngå å laste opp sensitiv, fortrolig eller personidentifiserbar
+                  informasjon uten at dette er særskilt vurdert. Løsningen er en
+                  prototype og bør vurderes nærmere før bruk med reelle rapporter
+                  eller andre sensitive dokumenter.
+                </p>
+              </section>
+
+              <section>
+                <h3 className="font-semibold">Formål</h3>
+                <p className={`mt-1 ${theme.subText}`}>
+                  Chatboten er laget for å hjelpe med spørsmål om WCAG,
+                  universell utforming og tolkning av testfest-relaterte funn.
+                </p>
+              </section>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
