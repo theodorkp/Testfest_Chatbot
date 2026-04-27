@@ -32,8 +32,34 @@ const upload = multer({
   },
 });
 
-// Én aktiv fil om gangen, i minnet
 let activeFile = null;
+let activeUrl = null;
+
+function isValidPublicHttpUrl(value) {
+  try {
+    const url = new URL(value);
+
+    // bare http/https
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return false;
+    }
+
+    // blokker localhost og lokale nett
+    const hostname = url.hostname.toLowerCase();
+
+    if (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "::1"
+    ) {
+      return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "testfest-chatbot-api" });
@@ -70,6 +96,33 @@ app.delete("/api/active-file", (_req, res) => {
   res.json({ ok: true });
 });
 
+app.get("/api/active-url", (_req, res) => {
+  res.json({ url: activeUrl });
+});
+
+app.post("/api/active-url", (req, res) => {
+  const { url } = req.body;
+
+  if (!url || typeof url !== "string" || !isValidPublicHttpUrl(url)) {
+    return res.status(400).json({
+      error: "Du må sende inn en gyldig offentlig http/https-lenke.",
+    });
+  }
+
+  activeUrl = url;
+  activeFile = null;
+
+  res.status(201).json({
+    ok: true,
+    url: activeUrl,
+  });
+});
+
+app.delete("/api/active-url", (_req, res) => {
+  activeUrl = null;
+  res.json({ ok: true });
+});
+
 app.post("/api/upload", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) {
@@ -83,6 +136,7 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
       mimeType: uploaded.mimeType,
       displayName: req.file.originalname,
     };
+    activeUrl = null;
 
     fs.unlink(req.file.path, () => {});
 
@@ -110,20 +164,19 @@ app.post("/api/chat", async (req, res) => {
       });
     }
 
-    const answer = await askGemini({
+    const result = await askGemini({
       message,
       history: Array.isArray(history) ? history : [],
       activeFile,
+      activeUrl,
     });
 
     res.json({
-      answer,
-      source: activeFile ? "llm+file" : "llm",
-      activeFile: activeFile
-        ? {
-            name: activeFile.displayName,
-          }
-        : null,
+      answer: result.text,
+      source: activeFile ? "llm+file" : activeUrl ? "llm+url" : "llm",
+      activeFile: activeFile ? { name: activeFile.displayName } : null,
+      activeUrl,
+      urlContextMetadata: result.urlContextMetadata,
     });
   } catch (error) {
     console.error("Chat error:", error?.message || error);

@@ -4,6 +4,7 @@ const API_URL = "http://localhost:3001/api/chat";
 const SUGGESTED_URL = "http://localhost:3001/api/suggested-prompts";
 const UPLOAD_URL = "http://localhost:3001/api/upload";
 const ACTIVE_FILE_URL = "http://localhost:3001/api/active-file";
+const ACTIVE_URL_URL = "http://localhost:3001/api/active-url";
 
 const INITIAL_MESSAGE = {
   role: "assistant",
@@ -18,6 +19,23 @@ const PDF_SUGGESTED_PROMPTS = [
   "Hvilke WCAG-relaterte utfordringer peker rapporten på?",
 ];
 
+const URL_SUGGESTED_PROMPTS = [
+  "Kan du oppsummere innholdet på siden?",
+  "Hva er de viktigste punktene i denne lenken?",
+  "Er det noe på siden som er relevant for universell utforming?",
+  "Kan du trekke ut de viktigste anbefalingene fra innholdet?",
+];
+
+function extractFirstUrl(text) {
+  const match = text.match(/https?:\/\/[^\s]+/i);
+  return match ? match[0] : null;
+}
+
+function removeUrlFromText(text, url) {
+  if (!url) return text.trim();
+  return text.replace(url, "").replace(/\s+/g, " ").trim();
+}
+
 export default function App() {
   const [messages, setMessages] = useState([INITIAL_MESSAGE]);
   const [input, setInput] = useState("");
@@ -26,6 +44,7 @@ export default function App() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [activeFile, setActiveFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [activeUrl, setActiveUrl] = useState(null);
 
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem("testfest-darkmode");
@@ -72,8 +91,24 @@ export default function App() {
       }
     }
 
+    async function fetchActiveUrl() {
+      try {
+        const response = await fetch(ACTIVE_URL_URL);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Kunne ikke hente aktiv lenke");
+        }
+
+        setActiveUrl(data.url || null);
+      } catch (error) {
+        console.error("Kunne ikke hente aktiv lenke:", error);
+      }
+    }
+
     fetchSuggestedPrompts();
     fetchActiveFile();
+    fetchActiveUrl();
   }, []);
 
   useEffect(() => {
@@ -132,7 +167,14 @@ export default function App() {
       console.error("Kunne ikke fjerne aktiv PDF:", error);
     }
 
+    try {
+      await fetch(ACTIVE_URL_URL, { method: "DELETE" });
+    } catch (error) {
+      console.error("Kunne ikke fjerne aktiv lenke:", error);
+    }
+
     setActiveFile(null);
+    setActiveUrl(null);
   }
 
   async function sendChatMessage(text) {
@@ -194,7 +236,67 @@ export default function App() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    await sendChatMessage(input);
+
+    const trimmed = input.trim();
+    if (!trimmed || loading) return;
+
+    const detectedUrl = extractFirstUrl(trimmed);
+    const questionWithoutUrl = removeUrlFromText(trimmed, detectedUrl);
+
+    if (detectedUrl) {
+      try {
+        const urlResponse = await fetch(ACTIVE_URL_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ url: detectedUrl }),
+        });
+
+        const urlData = await urlResponse.json();
+
+        if (!urlResponse.ok) {
+          throw new Error(urlData.error || "Kunne ikke lagre lenken");
+        }
+
+        setActiveUrl(urlData.url);
+        setActiveFile(null);
+        setSelectedFile(null);
+
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+
+        if (questionWithoutUrl) {
+          await sendChatMessage(questionWithoutUrl);
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            { role: "user", content: trimmed },
+            {
+              role: "assistant",
+              content: `Lenke lagt til: ${urlData.url}. Du kan nå stille spørsmål om siden.`,
+              source: "system",
+            },
+          ]);
+          setInput("");
+        }
+
+        return;
+      } catch (error) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: `Kunne ikke bruke lenken: ${error.message}`,
+            source: "error",
+          },
+        ]);
+        return;
+      }
+    }
+
+    await sendChatMessage(trimmed);
   }
 
   async function handleSuggestedPrompt(prompt) {
@@ -238,6 +340,10 @@ export default function App() {
     await sendChatMessage(prompt);
   }
 
+  async function handleUrlSuggestedPrompt(prompt) {
+    await sendChatMessage(prompt);
+  }
+
   async function handleUpload() {
     if (!selectedFile || uploading) return;
 
@@ -259,6 +365,7 @@ export default function App() {
       }
 
       setActiveFile(data.file || null);
+      setActiveUrl(null);
       setSelectedFile(null);
 
       if (fileInputRef.current) {
@@ -317,6 +424,37 @@ export default function App() {
         {
           role: "assistant",
           content: `Kunne ikke fjerne PDF: ${error.message}`,
+          source: "error",
+        },
+      ]);
+    }
+  }
+
+  async function handleClearActiveUrl() {
+    try {
+      const response = await fetch(ACTIVE_URL_URL, { method: "DELETE" });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Kunne ikke fjerne lenken");
+      }
+
+      setActiveUrl(null);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Den aktive lenken er fjernet fra denne chatten.",
+          source: "system",
+        },
+      ]);
+    } catch (error) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `Kunne ikke fjerne lenken: ${error.message}`,
           source: "error",
         },
       ]);
@@ -502,29 +640,42 @@ export default function App() {
                     </span>
                   </div>
                 )}
+
+                {msg.role === "assistant" && msg.source === "llm+url" && (
+                  <div className="mt-2 max-w-3xl">
+                    <span
+                      className={`inline-block rounded-full px-3 py-1 text-xs ${theme.badgeBg}`}
+                    >
+                      Svar basert på lenke
+                    </span>
+                  </div>
+                )}
               </div>
             ))}
 
-            {showSuggestedPrompts && !activeFile && suggestedPrompts.length > 0 && (
-              <div className="mt-6">
-                <p className={`mb-3 text-sm font-semibold ${theme.subText}`}>
-                  Forslag til spørsmål du kan stille:
-                </p>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {suggestedPrompts.map((prompt) => (
-                    <button
-                      key={prompt.id}
-                      type="button"
-                      onClick={() => handleSuggestedPrompt(prompt)}
-                      disabled={loading}
-                      className={`rounded-2xl border p-4 text-left text-sm shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${theme.suggestionCard}`}
-                    >
-                      {prompt.title}
-                    </button>
-                  ))}
+            {showSuggestedPrompts &&
+              !activeFile &&
+              !activeUrl &&
+              suggestedPrompts.length > 0 && (
+                <div className="mt-6">
+                  <p className={`mb-3 text-sm font-semibold ${theme.subText}`}>
+                    Forslag til spørsmål du kan stille:
+                  </p>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {suggestedPrompts.map((prompt) => (
+                      <button
+                        key={prompt.id}
+                        type="button"
+                        onClick={() => handleSuggestedPrompt(prompt)}
+                        disabled={loading}
+                        className={`rounded-2xl border p-4 text-left text-sm shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${theme.suggestionCard}`}
+                      >
+                        {prompt.title}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {activeFile && messages.length <= 2 && (
               <div className="mt-6">
@@ -537,6 +688,27 @@ export default function App() {
                       key={prompt}
                       type="button"
                       onClick={() => handlePdfSuggestedPrompt(prompt)}
+                      disabled={loading}
+                      className={`rounded-2xl border p-4 text-left text-sm shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${theme.suggestionCard}`}
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeUrl && messages.length <= 2 && (
+              <div className="mt-6">
+                <p className={`mb-3 text-sm font-semibold ${theme.subText}`}>
+                  Forslag til spørsmål om lenken:
+                </p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {URL_SUGGESTED_PROMPTS.map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      onClick={() => handleUrlSuggestedPrompt(prompt)}
                       disabled={loading}
                       className={`rounded-2xl border p-4 text-left text-sm shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${theme.suggestionCard}`}
                     >
@@ -586,7 +758,26 @@ export default function App() {
               </div>
             )}
 
-            {selectedFile && !activeFile && (
+            {activeUrl && (
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <div
+                  className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm ${theme.badgeBg}`}
+                >
+                  <span className="font-medium">Lenke:</span>
+                  <span className="max-w-[420px] truncate">{activeUrl}</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleClearActiveUrl}
+                  className={`rounded-full border px-3 py-2 text-xs transition ${theme.secondaryButton}`}
+                >
+                  Fjern
+                </button>
+              </div>
+            )}
+
+            {selectedFile && !activeFile && !activeUrl && (
               <div className="mb-3 flex flex-wrap items-center gap-2">
                 <div
                   className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm ${theme.badgeBg}`}
@@ -631,10 +822,14 @@ export default function App() {
               <button
                 type="button"
                 onClick={openFilePicker}
-                disabled={loading || uploading}
+                disabled={loading || uploading || !!activeUrl}
                 className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full border shadow-sm transition ${theme.settingsButton} disabled:cursor-not-allowed disabled:opacity-60`}
                 aria-label="Last opp PDF"
-                title="Last opp PDF"
+                title={
+                  activeUrl
+                    ? "Fjern aktiv lenke før du laster opp PDF"
+                    : "Last opp PDF"
+                }
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -664,7 +859,9 @@ export default function App() {
                 placeholder={
                   activeFile
                     ? "For eksempel: Hva er de viktigste funnene i denne rapporten?"
-                    : "For eksempel: Hva er WCAG?"
+                    : activeUrl
+                    ? "For eksempel: Kan du oppsummere siden?"
+                    : "For eksempel: Hva er WCAG? Du kan også lime inn en lenke sammen med spørsmålet ditt."
                 }
                 rows={3}
                 className={`min-h-[88px] flex-1 rounded-2xl border px-4 py-3 outline-none transition focus:border-blue-500 ${theme.inputBg}`}
@@ -728,6 +925,15 @@ export default function App() {
                   Hvis du laster opp en PDF, mottas filen først av backend-tjenesten
                   og lastes deretter opp til Gemini Files API for dokumentforståelse.
                   Den lokale kopien slettes etter opplasting.
+                </p>
+              </section>
+
+              <section>
+                <h3 className="font-semibold">Lenker</h3>
+                <p className={`mt-1 ${theme.subText}`}>
+                  Hvis du sender en offentlig lenke, kan chatboten bruke
+                  innholdet på siden som kontekst i svaret. Private eller
+                  tilgangsbeskyttede lenker støttes ikke i denne versjonen.
                 </p>
               </section>
 

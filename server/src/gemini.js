@@ -16,37 +16,61 @@ export async function uploadPdfToGemini(filePath, mimeType = "application/pdf") 
   return uploadedFile;
 }
 
-export async function askGemini({ message, history = [], activeFile = null }) {
-  const priorTurns = history;
-
-  const currentUserContent = activeFile
-    ? createUserContent([
-        createPartFromUri(activeFile.uri, activeFile.mimeType),
-        message,
-      ])
-    : {
-        role: "user",
-        parts: [{ text: message }],
-      };
-
-  const contents = [...priorTurns, currentUserContent];
+export async function askGemini({
+  message,
+  history = [],
+  activeFile = null,
+  activeUrl = null,
+}) {
+  let contents = [
+    ...history,
+    activeFile
+      ? createUserContent([
+          createPartFromUri(activeFile.uri, activeFile.mimeType),
+          message,
+        ])
+      : {
+          role: "user",
+          parts: [{ text: message }],
+        },
+  ];
 
   const maxAttempts = 3;
   let lastError;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
+      const config = {
+        systemInstruction,
+        temperature: 0.3,
+        maxOutputTokens: 2000,
+      };
+
+      if (activeUrl) {
+        config.tools = [{ urlContext: {} }];
+        contents = [
+          ...history,
+          {
+            role: "user",
+            parts: [
+              {
+                text: `Svar på spørsmålet ved å bruke denne lenken som kontekst:\n${activeUrl}\n\nSpørsmål: ${message}`,
+              },
+            ],
+          },
+        ];
+      }
+
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
-        config: {
-          systemInstruction,
-          temperature: 0.3,
-          maxOutputTokens: 2000,
-        },
         contents,
+        config,
       });
 
-      return response.text;
+      return {
+        text: response.text,
+        urlContextMetadata: response.candidates?.[0]?.urlContextMetadata || null,
+      };
     } catch (error) {
       lastError = error;
 
