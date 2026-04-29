@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 
-const API_URL = "http://localhost:3001/api/chat";
-const SUGGESTED_URL = "http://localhost:3001/api/suggested-prompts";
-const UPLOAD_URL = "http://localhost:3001/api/upload";
-const ACTIVE_FILE_URL = "http://localhost:3001/api/active-file";
-const ACTIVE_URL_URL = "http://localhost:3001/api/active-url";
+const API_BASE_URL = "https://testfest-chatbot.onrender.com";
+
+const API_URL = `${API_BASE_URL}/api/chat`;
+const SUGGESTED_URL = `${API_BASE_URL}/api/suggested-prompts`;
+const UPLOAD_URL = `${API_BASE_URL}/api/upload`;
+const ACTIVE_FILE_URL = `${API_BASE_URL}/api/active-file`;
+const ACTIVE_URL_URL = `${API_BASE_URL}/api/active-url`;
 
 const INITIAL_MESSAGE = {
   role: "assistant",
