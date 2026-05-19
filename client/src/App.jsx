@@ -594,7 +594,7 @@ export default function App() {
         </div>
 
         <header className={`mb-6 rounded-2xl p-6 shadow-sm ${theme.headerBg}`}>
-          <p className="text-sm font-medium uppercase tracking-wide text-blue-700">
+          <p className="text-sm font-medium uppercase tracking-wide text-700">
             Testfest-Chatbot
           </p>
           <h1 className="mt-2 text-3xl font-bold">
